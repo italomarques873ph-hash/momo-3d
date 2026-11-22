@@ -462,9 +462,12 @@ function buildMenu() {
   sceneMenu = new THREE.Scene();
   sceneMenu.background = new THREE.Color(0x020205);
   camMenu = new THREE.PerspectiveCamera(55, 1, 0.1, 40);
-  const amb = new THREE.AmbientLight(0xffffff, 0.08); sceneMenu.add(amb);
+  const amb = new THREE.AmbientLight(0xffffff, 0.15); sceneMenu.add(amb);
   const spot = new THREE.SpotLight(0x4400ff, 1.2, 10, Math.PI / 4, 0.5, 1);
   spot.position.set(1.5, 2.5, 1.5); spot.lookAt(0, 0, 0); sceneMenu.add(spot);
+  // Luz frontal branca para iluminar o modelo oficial da Momo no menu
+  const front = new THREE.PointLight(0xffffff, 1.0, 12);
+  front.position.set(0, 2, 3); sceneMenu.add(front);
   const m = ensureMomo();
   m.position.set(0, 0, -3); m.lookAt(camMenu.position);
   sceneMenu.add(m); momoHost = 'menu';
@@ -573,38 +576,22 @@ function startLoadingSequence() {
     }
   }, 1800);
 
-  // 1) Modelo 3D oficial (timeout 1,5s -> fallback procedural)
-  let glbResolved = false;
-  const glbTimeout = setTimeout(() => {
-    if (!glbResolved) {
-      glbResolved = true;
-      console.warn('GLB timeout — fallback procedural da Momo');
-      markDone(0);
-    }
-  }, 1500);
+  // 1) Modelo 3D oficial — carrega ./momo_3d_model.glb sem timeout (espera terminar)
   new GLTFLoader().load('momo_3d_model.glb', (gltf) => {
-    clearTimeout(glbTimeout);
-    if (!glbResolved) {
-      glbResolved = true;
-      momoGltf = gltf;
-      markDone(0);
-    }
+    momoGltf = gltf;
+    markDone(0);
   }, undefined, (err) => {
-    clearTimeout(glbTimeout);
-    if (!glbResolved) {
-      glbResolved = true;
-      console.warn('GLB erro — fallback procedural da Momo', err);
-      markDone(0);
-    }
+    console.warn('GLB erro — fallback procedural da Momo', err);
+    markDone(0);
   });
 
-  // 2) Textura pôster JoJo (timeout 1,5s)
-  loadTexWithTimeout('assets/img/jojo-poster.png', 1500)
+  // 2) Textura pôster JoJo (sem timeout curto que cancele o download)
+  loadTex('assets/img/jojo-poster.png')
     .then(t => { textures.poster = t; markDone(1); })
     .catch(() => markDone(1));
 
-  // 3) Ícone/favicon (timeout 1,5s)
-  loadTexWithTimeout('assets/img/favicon.png', 1500)
+  // 3) Ícone/favicon (sem timeout curto que cancele o download)
+  loadTex('assets/img/favicon.png')
     .then(t => { textures.favicon = t; markDone(2); })
     .catch(() => markDone(2));
 }
@@ -742,6 +729,9 @@ function openMonitor() {
   setMobileUI(false);
   buildThumbs();
   updateMonitorUI();
+  // Estática apenas no monitor, com opacidade baixa
+  const monStatic = els.monitor.querySelector('.mon-static');
+  if (monStatic) monStatic.classList.add('active');
   SND.tone(300, 'sine', 0.1, 0.08);
 }
 function closeMonitor() {
@@ -750,6 +740,8 @@ function closeMonitor() {
   els.hud.classList.remove('hidden');
   setMobileUI(true);
   monFlash = false;
+  const monStatic = els.monitor.querySelector('.mon-static');
+  if (monStatic) monStatic.classList.remove('active');
 }
 function buildThumbs() {
   els.monThumbs.innerHTML = '';
