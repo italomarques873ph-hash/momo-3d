@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MOMO 3D — FNAF Style</title>
+<link rel="icon" href="assets/img/favicon.png" sizes="any">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "lib/three/build/three.module.js",
+    "three/addons/": "lib/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<!-- SVG filtro de estática (CRT) -->
+<svg style="display:none">
+  <filter id="noise">
+    <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="3" stitchTiles="stitch" />
+    <feColorMatrix type="saturate" values="0" />
+  </filter>
+</svg>
+
+<div id="world"></div>
+
+<!-- Tela de carregamento -->
+<div id="screen-loading" class="screen">
+  <div class="card">
+    <div class="logo">MOMO 3D</div>
+    <div class="subtitle">Carregando modelo 3D, texturas e áudios...</div>
+    <div class="progress"><div class="bar" id="load-bar"></div></div>
+    <div class="pct" id="load-pct">0%</div>
+    <div id="load-btn" class="btn hidden">INICIAR</div>
+    <div class="hint">Abra o áudio para ouvir a trilha sombria</div>
+  </div>
+  <div class="static" id="load-static"></div>
+</div>
+
+<!-- Menu 3D -->
+<div id="screen-menu" class="screen hidden">
+  <div class="menu-text">
+    <div class="logo">MOMO 3D</div>
+    <div class="subtitle">Boa noite...</div>
+    <div id="menu-btn" class="btn">PLAY</div>
+  </div>
+  <div class="static" id="menu-static"></div>
+</div>
+
+<!-- Jornal -->
+<div id="screen-paper" class="screen hidden">
+  <div class="paper-frame">
+    <div class="paper-top">JORNAL LOCAL — EDIÇÃO ESPECIAL</div>
+    <img id="paper-bg" src="assets/img/newspaper-template.png" alt="jornal">
+    <img id="paper-photo" src="assets/img/favicon.png" class="paper-photo" alt="foto">
+    <div class="paper-title">MOMO É REAL!!!</div>
+    <div class="paper-text">
+      &ldquo;Momo n&atilde;o existe, ela &eacute; muito linda.&rdquo; Essa frase infectou o Brasil inteiro e acabou chegando at&eacute; a momo.
+      Ela ficou brava e fez com que 6 ou 7 crianças ficassem desaparecidas. Tome cuidado, n&atilde;o saia de casa.
+    </div>
+    <div id="paper-btn" class="btn paper-btn">COMEÇAR NOITE 1</div>
+    <div class="paper-footer">Clique no jornal para iniciar</div>
+  </div>
+</div>
+
+<!-- HUD do jogo -->
+<div id="hud" class="hidden">
+  <div class="clock" id="clock"></div>
+  <div class="battery">
+    <div class="batt-label">BATERIA <span id="batt-pct">100</span>%</div>
+    <div class="batt-bars" id="batt-bars">
+      <div class="batt-bar"></div><div class="batt-bar"></div><div class="batt-bar"></div><div class="batt-bar"></div>
+    </div>
+  </div>
+  <div class="usage" id="usage"></div>
+  <div class="warn" id="warn"></div>
+  <div class="ctrls" id="ctrls">
+    <button id="btn-flashlight" class="ctrl-btn">LANTERNA <span class="k">(F)</span></button>
+    <button id="btn-door" class="ctrl-btn door">FECHAR PORTA</button>
+    <button id="btn-curtain" class="ctrl-btn curtain">FECHAR CORTINA</button>
+  </div>
+</div>
+
+<!-- Monitor de câmeras -->
+<div id="monitor" class="hidden">
+  <div class="mon-header">
+    <span id="mon-cam">CAM_01</span>
+    <span class="rec" id="mon-rec">● REC</span>
+    <span id="mon-name">Sala</span>
+  </div>
+  <div class="mon-static"></div>
+  <div class="mon-thumbs" id="mon-thumbs"></div>
+  <div class="mon-controls">
+    <button id="mon-flashlight" class="ctrl-btn">LANTERNA DA CÂMERA</button>
+    <button id="mon-close" class="ctrl-btn">FECHAR MONITOR</button>
+  </div>
+</div>
+
+<!-- Jumpscare -->
+<div id="screen-jump" class="screen hidden">
+  <div class="jump-content"></div>
+  <div id="jump-text">A MOMO TE PEGOU!</div>
+</div>
+
+<!-- Game over -->
+<div id="screen-gameover" class="screen hidden">
+  <div class="card">
+    <div class="logo big">GAME OVER</div>
+    <div class="subtitle" id="go-text">A Momo te pegou.</div>
+    <button id="go-retry" class="btn">TENTAR NOVAMENTE</button>
+  </div>
+</div>
+
+<!-- Noite concluída -->
+<div id="screen-night" class="screen hidden">
+  <div class="card">
+    <div class="logo">NOITE <span id="night-num">1</span> CONCLUÍDA</div>
+    <div class="subtitle">06:00 AM — Você sobreviveu.</div>
+    <button id="night-next" class="btn">PRÓXIMA NOITE</button>
+  </div>
+</div>
+
+<!-- Controles móveis (visíveis automaticamente em telas pequenas) -->
+<div id="mobile-ui" class="mobile-ui">
+  <button id="mb-flashlight">LANTERNA</button>
+  <button id="mb-door">PORTA</button>
+  <button id="mb-curtain">CORTINA</button>
+  <button id="mb-close" style="display:none">FECHAR MONITOR</button>
+</div>
+
+<script type="module" src="game.js"></script>
+</body>
+</html>
