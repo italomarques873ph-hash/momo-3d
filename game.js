@@ -108,7 +108,8 @@ let laptopMesh = null, fanMesh = null;
 let textures = {};
 
 let night = 1, running = false, nightT = 0, battery = 100;
-let mode = 'loading'; // loading | menu | paper | office | monitor | jumpscare | night
+let mode = 'menu'; // menu | paper | loading | office | monitor | jumpscare | night
+let loadMsgEl = null;
 let monCamIdx = 0, monFlash = false;
 let flashOn = false, yaw = 0;
 let lastTime = performance.now();
@@ -480,19 +481,49 @@ function init() {
   document.getElementById('world').appendChild(renderer.domElement);
 
   camOffice = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 40);
+  // Câmera posicionada no centro do quarto, olhando para a mesa e monitor (frente do jogador)
+  camOffice.position.set(0, 1.45, 2.6);
   sceneOffice = buildOffice();
   for (let i = 0; i < 6; i++) buildRoom(i);
   buildMenu();
+
+  loadMsgEl = $('load-msg');
+
+  // Inicia direto no MENU (sem loading inicial)
+  mode = 'menu';
+  els.menu.classList.remove('hidden');
+  SND.droneStart();
+}
+
+/* Sequência de loading: só começa APÓS o jornal, com mensagens dinâmicas */
+function startLoadingSequence() {
+  mode = 'loading';
+  els.paper.classList.add('hidden');
+  els.loading.classList.remove('hidden');
+  els.loadBtn.classList.add('hidden');
+  els.loadBar.style.width = '0%';
+  els.loadPct.textContent = '0%';
 
   const TOTAL = 3;
   let loadedCount = 0;
   let done = [false, false, false];
   let loadTarget = 0;
   let loadCurrent = 0;
+  let loadReadyLocal = false;
 
-  // Animação suave da barra de progresso
+  const msgs = [
+    'Carregando quarto 3D...',
+    'Preparando câmeras...',
+    'Iniciando Noite 1...'
+  ];
+  let msgIdx = 0;
+  function setMsg(m) {
+    if (loadMsgEl) loadMsgEl.textContent = m;
+  }
+  setMsg(msgs[0]);
+
   function animateBar() {
-    if (loadReady) {
+    if (loadReadyLocal) {
       loadCurrent = 100;
       els.loadBar.style.width = '100%';
       els.loadPct.textContent = '100%';
@@ -511,25 +542,33 @@ function init() {
     done[idx] = true;
     loadedCount++;
     loadTarget = Math.round((loadedCount / TOTAL) * 100);
-    if (loadedCount >= TOTAL) finishLoading();
+    if (msgIdx < msgs.length - 1 && loadedCount >= msgIdx + 1) {
+      msgIdx++;
+      setMsg(msgs[msgIdx]);
+    }
+    if (loadedCount >= TOTAL) finishLoadingLocal();
   }
 
-  function finishLoading() {
-    if (loadReady) return;
+  function finishLoadingLocal() {
+    if (loadReadyLocal) return;
+    loadReadyLocal = true;
     loadReady = true;
     loadTarget = 100;
+    setMsg('Iniciando Noite 1...');
     setTimeout(() => {
       els.loadBar.style.width = '100%';
       els.loadPct.textContent = '100%';
       els.loadBtn.classList.remove('hidden');
-      setTimeout(() => els.loading.classList.add('hidden'), 500);
     }, 300);
-    SND.droneStart();
+    setTimeout(() => {
+      els.loading.classList.add('hidden');
+      startNight(1);
+    }, 900);
   }
 
-  // Força conclusão em menos de 2 segundos (trava se algo falhar)
+  // Força conclusão em menos de 2 segundos (nunca trava)
   setTimeout(() => {
-    if (!loadReady) {
+    if (!loadReadyLocal) {
       for (let i = 0; i < TOTAL; i++) if (!done[i]) markDone(i);
     }
   }, 1800);
@@ -570,14 +609,6 @@ function init() {
     .catch(() => markDone(2));
 }
 
-function onReady() {
-  if (loadReady) return;
-  loadReady = true;
-  els.loadBtn.classList.remove('hidden');
-  setTimeout(() => els.loading.classList.add('hidden'), 500);
-  SND.droneStart();
-}
-
 function startMenu() {
   mode = 'menu';
   els.menu.classList.remove('hidden');
@@ -595,6 +626,8 @@ function startNight(n) {
   running = true;
   nightT = 0;
   battery = 100;
+  // Câmera começa olhando para a mesa e monitor (frente do jogador, não para a parede/ventilador)
+  yaw = 0.68;
   blackout = false;
   flashOn = false; monFlash = false; monCamIdx = 0;
   doorOpen = true; curtainOpen = true; doorAngle = 0; curtainScale = 1;
@@ -847,8 +880,8 @@ function placeMomoInView() {
 /* ================= CÂMERAS / INPUT ================= */
 function updateOfficeCamera() {
   const dir = new THREE.Vector3(Math.sin(yaw), 0, -Math.cos(yaw));
-  camOffice.position.set(0, 1.45, 0);
-  camOffice.lookAt(new THREE.Vector3(Math.sin(yaw), 1.45, -Math.cos(yaw)));
+  camOffice.position.set(0, 1.45, 2.6);
+  camOffice.lookAt(new THREE.Vector3(Math.sin(yaw), 1.45, 2.6 - Math.cos(yaw)));
   flashLight.position.copy(camOffice.position);
   flashLight.target.position.set(camOffice.position.x + dir.x * 10, camOffice.position.y, camOffice.position.z + dir.z * 10);
   flashLight.target.updateMatrixWorld();
@@ -953,10 +986,10 @@ function setupInput() {
   els.mbCurtain.onclick = toggleCurtain;
   els.mbClose.onclick = closeMonitor;
 
-  /* Fluxo de telas */
-  els.loadBtn.onclick = () => { SND.droneStart(); startMenu(); };
+  /* Fluxo de telas: Menu -> PLAY -> Jornal -> Loading -> Jogo */
+  els.loadBtn.onclick = () => { SND.droneStart(); startNight(1); };
   els.menuBtn.onclick = () => { startPaper(); };
-  els.paperBtn.onclick = () => { startNight(1); };
+  els.paperBtn.onclick = () => { startLoadingSequence(); };
   els.goRetry.onclick = () => {
     els.gameover.classList.add('hidden');
     startNight(1);
