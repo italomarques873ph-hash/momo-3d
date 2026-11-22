@@ -26,11 +26,11 @@
 
 <div id="world"></div>
 
-<!-- Tela de carregamento -->
-<div id="screen-loading" class="screen">
+<!-- Tela de carregamento (inicia escondida, aparece após o jornal) -->
+<div id="screen-loading" class="screen hidden">
   <div class="card">
     <div class="logo">MOMO 3D</div>
-    <div class="subtitle">Carregando modelo 3D, texturas e áudios...</div>
+    <div class="subtitle" id="load-msg">Carregando quarto 3D...</div>
     <div class="progress"><div class="bar" id="load-bar"></div></div>
     <div class="pct" id="load-pct">0%</div>
     <div id="load-btn" class="btn hidden">INICIAR</div>
@@ -39,8 +39,8 @@
   <div class="static" id="load-static"></div>
 </div>
 
-<!-- Menu 3D -->
-<div id="screen-menu" class="screen hidden">
+<!-- Menu 3D (primeira tela ao abrir o jogo) -->
+<div id="screen-menu" class="screen">
   <div class="menu-text">
     <div class="logo">MOMO 3D</div>
     <div class="subtitle">Boa noite...</div>
