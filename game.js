@@ -164,28 +164,100 @@ function tileTexture() {
   return t;
 }
 
-/* ================= MOMO (modelo oficial momo_3d_model.glb) ================= */
+/* Carrega textura com timeout (ms). Rejeita se demorar mais que o timeout. */
+function loadTexWithTimeout(url, timeout = 1500) {
+  return Promise.race([
+    loadTex(url),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout ' + url)), timeout))
+  ]);
+}
+
+/* ================= MOMO PROCEDURAL (fallback quando o GLB falha) ================= */
+function createProceduralMomo() {
+  const root = new THREE.Group();
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xffe0d0, roughness: 0.8 });
+  const blackMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1 });
+  const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+  // Cabeça grande e pálida
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 24), skinMat);
+  head.position.y = 1.4;
+  head.scale.set(1, 0.9, 0.85);
+  root.add(head);
+
+  // Olhos grandes e esbugalhados
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), whiteMat);
+  eyeL.position.set(-0.22, 1.45, 0.5); root.add(eyeL);
+  const pupilL = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), eyeMat);
+  pupilL.position.set(-0.22, 1.45, 0.56); root.add(pupilL);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), whiteMat);
+  eyeR.position.set(0.22, 1.45, 0.5); root.add(eyeR);
+  const pupilR = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), eyeMat);
+  pupilR.position.set(0.22, 1.45, 0.56); root.add(pupilR);
+
+  // Boca pequena
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.04), blackMat);
+  mouth.position.set(0, 1.25, 0.55); root.add(mouth);
+
+  // Cabelo preto e desalinhado
+  const hair = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.5, 0.3), blackMat);
+  hair.position.set(0, 1.7, 0.05); root.add(hair);
+  const hairL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.8, 0.3), blackMat);
+  hairL.position.set(-0.55, 1.55, 0.1); root.add(hairL);
+  const hairR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.8, 0.3), blackMat);
+  hairR.position.set(0.55, 1.55, 0.1); root.add(hairR);
+
+  // Corpo fino
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.9, 0.35), skinMat);
+  body.position.y = 0.7; root.add(body);
+
+  // Braços e pernas
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), skinMat);
+  armL.position.set(-0.3, 0.95, 0); armL.rotation.z = -0.3; root.add(armL);
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), skinMat);
+  armR.position.set(0.3, 0.95, 0); armR.rotation.z = 0.3; root.add(armR);
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.75, 0.14), skinMat);
+  legL.position.set(-0.12, 0.1, 0); root.add(legL);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.75, 0.14), skinMat);
+  legR.position.set(0.12, 0.1, 0); root.add(legR);
+
+  root.position.y = 0;
+  root.rotation.y = Math.PI; // virada para frente
+  return root;
+}
+
+/* ================= MOMO (modelo oficial momo_3d_model.glb ou fallback procedural) ================= */
 function ensureMomo() {
   if (momo) return momo;
-  const root = momoGltf.scene.clone(true);
-  root.traverse((o) => {
-    if (o.isSkinnedMesh || (o.isMesh && o.name === 'MomoMesh')) { /* mesh achada na travessia */ }
-  });
-  let mesh = null;
-  root.traverse((o) => { if (o.isMesh) mesh = o; });
-  // BoundingBox automática: escala para altura ~1.75 e pés tocam o chão (y=0)
-  const box = new THREE.Box3().setFromObject(root);
-  const size = box.getSize(new THREE.Vector3());
-  const s = 1.75 / Math.max(size.y, 0.01);
-  root.scale.set(s, s, s);
-  const box2 = new THREE.Box3().setFromObject(root);
-  root.position.y = -box2.min.y;
-  root.rotation.y = Math.PI; // anda virada para frente
-  momo = root;
-  momoMixer = new THREE.AnimationMixer(root);
+
+  if (momoGltf) {
+    const root = momoGltf.scene.clone(true);
+    root.traverse((o) => {
+      if (o.isSkinnedMesh || (o.isMesh && o.name === 'MomoMesh')) { /* mesh achada na travessia */ }
+    });
+    let mesh = null;
+    root.traverse((o) => { if (o.isMesh) mesh = o; });
+    // BoundingBox automática: escala para altura ~1.75 e pés tocam o chão (y=0)
+    const box = new THREE.Box3().setFromObject(root);
+    const size = box.getSize(new THREE.Vector3());
+    const s = 1.75 / Math.max(size.y, 0.01);
+    root.scale.set(s, s, s);
+    const box2 = new THREE.Box3().setFromObject(root);
+    root.position.y = -box2.min.y;
+    root.rotation.y = Math.PI; // anda virada para frente
+    momo = root;
+    momoMixer = new THREE.AnimationMixer(root);
+    momoClipByName = {};
+    (momoGltf.animations || []).forEach((c) => { momoClipByName[c.name] = c; });
+    playAnim('Idle');
+    return momo;
+  }
+
+  // Fallback procedural imediato quando o GLB falha ou expira o timeout
+  momo = createProceduralMomo();
+  momoMixer = null;
   momoClipByName = {};
-  (momoGltf.animations || []).forEach((c) => { momoClipByName[c.name] = c; });
-  playAnim('Idle');
   return momo;
 }
 function playAnim(name) {
@@ -412,25 +484,94 @@ function init() {
   for (let i = 0; i < 6; i++) buildRoom(i);
   buildMenu();
 
-  let loaded = 0, total = 3;
-  function tick() {
-    if (loadReady) return;
-    loaded++;
-    const pct = Math.round((loaded / total) * 100);
-    els.loadBar.style.width = pct + '%';
-    els.loadPct.textContent = pct + '%';
-    if (loaded >= total) onReady();
-  }
-  new GLTFLoader().load('momo_3d_model.glb', (gltf) => {
-    momoGltf = gltf;
-    tick();
-  }, undefined, (err) => { console.error('Erro ao carregar GLB', err); tick(); });
+  const TOTAL = 3;
+  let loadedCount = 0;
+  let done = [false, false, false];
+  let loadTarget = 0;
+  let loadCurrent = 0;
 
-  loadTex('assets/img/jojo-poster.png').then(t => { textures.poster = t; tick(); }, () => tick());
-  loadTex('assets/img/favicon.png').then(t => { textures.favicon = t; tick(); }, () => tick());
+  // Animação suave da barra de progresso
+  function animateBar() {
+    if (loadReady) {
+      loadCurrent = 100;
+      els.loadBar.style.width = '100%';
+      els.loadPct.textContent = '100%';
+      return;
+    }
+    loadCurrent += (loadTarget - loadCurrent) * 0.18;
+    if (Math.abs(loadTarget - loadCurrent) < 0.6) loadCurrent = loadTarget;
+    els.loadBar.style.width = loadCurrent.toFixed(0) + '%';
+    els.loadPct.textContent = Math.round(loadCurrent) + '%';
+    requestAnimationFrame(animateBar);
+  }
+  animateBar();
+
+  function markDone(idx) {
+    if (done[idx]) return;
+    done[idx] = true;
+    loadedCount++;
+    loadTarget = Math.round((loadedCount / TOTAL) * 100);
+    if (loadedCount >= TOTAL) finishLoading();
+  }
+
+  function finishLoading() {
+    if (loadReady) return;
+    loadReady = true;
+    loadTarget = 100;
+    setTimeout(() => {
+      els.loadBar.style.width = '100%';
+      els.loadPct.textContent = '100%';
+      els.loadBtn.classList.remove('hidden');
+      setTimeout(() => els.loading.classList.add('hidden'), 500);
+    }, 300);
+    SND.droneStart();
+  }
+
+  // Força conclusão em menos de 2 segundos (trava se algo falhar)
+  setTimeout(() => {
+    if (!loadReady) {
+      for (let i = 0; i < TOTAL; i++) if (!done[i]) markDone(i);
+    }
+  }, 1800);
+
+  // 1) Modelo 3D oficial (timeout 1,5s -> fallback procedural)
+  let glbResolved = false;
+  const glbTimeout = setTimeout(() => {
+    if (!glbResolved) {
+      glbResolved = true;
+      console.warn('GLB timeout — fallback procedural da Momo');
+      markDone(0);
+    }
+  }, 1500);
+  new GLTFLoader().load('momo_3d_model.glb', (gltf) => {
+    clearTimeout(glbTimeout);
+    if (!glbResolved) {
+      glbResolved = true;
+      momoGltf = gltf;
+      markDone(0);
+    }
+  }, undefined, (err) => {
+    clearTimeout(glbTimeout);
+    if (!glbResolved) {
+      glbResolved = true;
+      console.warn('GLB erro — fallback procedural da Momo', err);
+      markDone(0);
+    }
+  });
+
+  // 2) Textura pôster JoJo (timeout 1,5s)
+  loadTexWithTimeout('assets/img/jojo-poster.png', 1500)
+    .then(t => { textures.poster = t; markDone(1); })
+    .catch(() => markDone(1));
+
+  // 3) Ícone/favicon (timeout 1,5s)
+  loadTexWithTimeout('assets/img/favicon.png', 1500)
+    .then(t => { textures.favicon = t; markDone(2); })
+    .catch(() => markDone(2));
 }
 
 function onReady() {
+  if (loadReady) return;
   loadReady = true;
   els.loadBtn.classList.remove('hidden');
   setTimeout(() => els.loading.classList.add('hidden'), 500);
